@@ -2,8 +2,10 @@ const db = require('../models')
 
 const multer = require('multer')
 const bcrypt = require('bcrypt');
+const { generateQr } = require('../service/qrcode_service')
 
-const path = require('path')
+const path = require('path');
+const { users } = require('../models');
 
 
 const User = db.users
@@ -13,12 +15,12 @@ const User = db.users
 const regUser = async(req, res) => {
     const hashedPassword = await bcrypt.hash(req.body.password, 10)
     let info = {
-        image: req.file.path,
         name: req.body.name,
         email: req.body.email,
-        password: hashedPassword
+        password: hashedPassword,
+        image: req.file.path
     }
-
+    console.log(info)
     const user = await User.create(info)
     res.status(200).send(user)
     console.log(user)
@@ -34,7 +36,7 @@ const getAllUsers = async(req, res) => {
 }
 
 const login = async(req, res) => {
-    const user = users.find(user => user.name == req.body.name)
+    var user = User.findOne(user => user.email == req.body.email)
     if (user == null) {
         return res.status(400).send('Cannot find user')
     }
@@ -46,6 +48,20 @@ const login = async(req, res) => {
         }
     } catch {
         res.status(500).send()
+    }
+}
+
+const qrForUser = async(req, res) => {
+    var userQr = await User.findOne({ id: req.params.id })
+    if (!userQr) {
+        return res.status(404).send({ message: "User not found" })
+    }
+    var data = userQr.id
+    var qr_data = await generateQr(data)
+    if (!qr_data.error) {
+        res.send({ message: "QR", url: qr_data.data })
+    } else {
+        res.status(500).send({ message: "Something went wrong", error: qr_data.error })
     }
 }
 
@@ -78,6 +94,7 @@ module.exports = {
     regUser,
     getAllUsers,
     login,
-    upload
+    upload,
+    qrForUser
 
 }
